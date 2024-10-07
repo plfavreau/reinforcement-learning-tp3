@@ -1,9 +1,7 @@
 from collections import defaultdict
-import random
 import typing as t
 import numpy as np
-import gymnasium as gym
-
+import random
 
 Action = int
 State = int
@@ -47,6 +45,7 @@ class SarsaAgent:
         """
         value = 0.0
         # BEGIN SOLUTION
+        value = max(self.get_qvalue(state, action) for action in self.legal_actions)
         # END SOLUTION
         return value
 
@@ -61,6 +60,12 @@ class SarsaAgent:
         """
         q_value = 0.0
         # BEGIN SOLUTION
+        next_action = self.get_action(next_state)
+        old_q_value = self.get_qvalue(state, action)
+        next_q_value = self.get_qvalue(next_state, next_action)
+        td_target = reward + self.gamma * next_q_value
+        td_error = td_target - old_q_value
+        q_value = old_q_value + self.learning_rate * td_error
         # END SOLUTION
 
         self.set_qvalue(state, action, q_value)
@@ -83,6 +88,10 @@ class SarsaAgent:
         action = self.legal_actions[0]
 
         # BEGIN SOLUTION
+        if random.random() < 0.1:  # Using a fixed epsilon of 0.1 for exploration
+            action = random.choice(self.legal_actions)
+        else:
+            action = self.get_best_action(state)
         # END SOLUTION
 
         return action

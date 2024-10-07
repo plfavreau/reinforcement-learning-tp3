@@ -1,9 +1,7 @@
 from collections import defaultdict
-import random
 import typing as t
 import numpy as np
-import gymnasium as gym
-
+import random
 
 Action = int
 State = int
@@ -49,6 +47,7 @@ class QLearningAgent:
         """
         value = 0.0
         # BEGIN SOLUTION
+        value = max(self.get_qvalue(state, action) for action in self.legal_actions)
         # END SOLUTION
         return value
 
@@ -63,6 +62,11 @@ class QLearningAgent:
         """
         q_value = 0.0
         # BEGIN SOLUTION
+        old_q_value = self.get_qvalue(state, action)
+        next_max_q_value = self.get_value(next_state)
+        td_target = reward + self.gamma * next_max_q_value
+        td_error = td_target - old_q_value
+        q_value = old_q_value + self.learning_rate * td_error
         # END SOLUTION
 
         self.set_qvalue(state, action, q_value)
@@ -91,6 +95,10 @@ class QLearningAgent:
         action = self.legal_actions[0]
 
         # BEGIN SOLUTION
+        if random.random() < self.epsilon:
+            action = random.choice(self.legal_actions)
+        else:
+            action = self.get_best_action(state)
         # END SOLUTION
 
         return action

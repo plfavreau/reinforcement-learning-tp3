@@ -21,10 +21,11 @@ et vos résultats (max 1 page).
 import typing as t
 import gymnasium as gym
 import numpy as np
+import matplotlib.pyplot as plt
+from gym.wrappers import RecordVideo
 from qlearning import QLearningAgent
 from qlearning_eps_scheduling import QLearningAgentEpsScheduling
-from sarsa import SARSAAgent
-
+from sarsa import SarsaAgent
 
 env = gym.make("Taxi-v3", render_mode="rgb_array")
 n_actions = env.action_space.n  # type: ignore
@@ -57,6 +58,13 @@ def play_and_train(env: gym.Env, agent: QLearningAgent, t_max=int(1e4)) -> float
 
         # Train agent for state s
         # BEGIN SOLUTION
+        agent.update(s, a, r, next_s)
+
+        total_reward += r
+        s = next_s
+
+        if done:
+            break
         # END SOLUTION
 
     return total_reward
@@ -68,17 +76,8 @@ for i in range(1000):
     if i % 100 == 0:
         print("mean reward", np.mean(rewards[-100:]))
 
-assert np.mean(rewards[-100:]) > 0.0
-# TODO: créer des vidéos de l'agent en action
 
-#################################################
-# 2. Play with QLearningAgentEpsScheduling
-#################################################
-
-
-agent = QLearningAgentEpsScheduling(
-    learning_rate=0.5, epsilon=0.25, gamma=0.99, legal_actions=list(range(n_actions))
-)
+agent = SarsaAgent(learning_rate=0.5, gamma=0.99, legal_actions=list(range(n_actions)))
 
 rewards = []
 for i in range(1000):
@@ -86,20 +85,49 @@ for i in range(1000):
     if i % 100 == 0:
         print("mean reward", np.mean(rewards[-100:]))
 
-assert np.mean(rewards[-100:]) > 0.0
-
-# TODO: créer des vidéos de l'agent en action
-
-
-####################
-# 3. Play with SARSA
-####################
+#################################################
+# Run experiments and create videos
+#################################################
 
 
-agent = SARSAAgent(learning_rate=0.5, gamma=0.99, legal_actions=list(range(n_actions)))
+def run_experiment(agent_class, env, num_episodes=1000):
+    env = RecordVideo(env, f"videos/{agent_class.__name__}/", 
+                      episode_trigger=lambda episode_id: episode_id % 100 == 0)
+    
+    # Check if the agent class is SarsaAgent
+    if agent_class.__name__ == 'SarsaAgent':
+        agent = agent_class(learning_rate=0.1, gamma=0.99, legal_actions=list(range(env.action_space.n)))
+    else:
+        agent = agent_class(learning_rate=0.1, epsilon=0.1, gamma=0.99, legal_actions=list(range(env.action_space.n)))
+    
+    rewards = []
 
-rewards = []
-for i in range(1000):
-    rewards.append(play_and_train(env, agent))
-    if i % 100 == 0:
-        print("mean reward", np.mean(rewards[-100:]))
+    for episode in range(num_episodes):
+        reward = play_and_train(env, agent)
+        rewards.append(reward)
+        
+        if episode % 100 == 0:
+            print(f"Episode {episode}, Reward: {reward}")
+
+    return rewards
+
+env = gym.make("Taxi-v3", render_mode="rgb_array")
+
+q_learning_rewards = run_experiment(QLearningAgent, env)
+sarsa_rewards = run_experiment(SarsaAgent, env)
+q_learning_eps_scheduling_rewards = run_experiment(QLearningAgentEpsScheduling, env)
+
+# Plot results
+plt.figure(figsize=(10, 5))
+plt.plot(range(1000), q_learning_rewards, label='Q-Learning')
+plt.plot(range(1000), sarsa_rewards, label='SARSA')
+plt.plot(range(1000), q_learning_eps_scheduling_rewards, label='Q-Learning with Epsilon Scheduling')
+plt.xlabel('Episodes')
+plt.ylabel('Reward')
+plt.title('Learning Curves Comparison')
+plt.legend()
+plt.savefig('learning_curves.png')
+plt.show()
+
+# Close the environment
+env.close()

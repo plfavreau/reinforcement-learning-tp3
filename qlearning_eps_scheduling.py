@@ -1,5 +1,4 @@
 import random
-import numpy as np
 from qlearning import QLearningAgent, State, Action
 
 
@@ -43,6 +42,10 @@ class QLearningAgentEpsScheduling(QLearningAgent):
         action = self.legal_actions[0]
 
         # BEGIN SOLUTION
+        if random.random() < self.epsilon:
+            action = random.choice(self.legal_actions)
+        else:
+            action = self.get_best_action(state)
         # END SOLUTION
 
         return action
