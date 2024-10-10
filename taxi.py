@@ -93,9 +93,6 @@ for i in range(1000):
 # Run experiments and create videos
 #################################################
 
-
-
-
 warnings.filterwarnings("ignore", category=UserWarning)
 
 def run_experiment(agent_class, env, num_episodes=1000):
@@ -106,72 +103,56 @@ def run_experiment(agent_class, env, num_episodes=1000):
     
     rewards = []
 
-    # Training loop
     for episode in tqdm(range(num_episodes), desc=f"Training {agent_class.__name__}"):
         reward = play_and_train(env, agent)
         rewards.append(reward)
 
-    # Print summary statistics
     print(f"\n{agent_class.__name__} Summary:")
     print(f"Average Reward: {np.mean(rewards):.2f}")
     print(f"Final 100 Episodes Average Reward: {np.mean(rewards[-100:]):.2f}")
 
-    # Create a directory for videos if it doesn't exist
     video_dir = f"videos/{agent_class.__name__}"
     os.makedirs(video_dir, exist_ok=True)
 
-    # Create a new environment for the final video
     video_env = gym.make("Taxi-v3", render_mode="rgb_array")
     video_env = RecordVideo(video_env, video_dir, 
                       name_prefix=f"{agent_class.__name__}_episode_{num_episodes}")
 
-    # Record one episode with the trained agent
     play_and_train(video_env, agent)
-
-    # Close the video environment
     video_env.close()
 
     return rewards
 
-def smooth_rewards(rewards, window_size=50):
-    """Apply smoothing to the rewards."""
-    cumsum = np.cumsum(np.insert(rewards, 0, 0)) 
-    return (cumsum[window_size:] - cumsum[:-window_size]) / window_size
-
 env = gym.make("Taxi-v3", render_mode="rgb_array")
 
-q_learning_rewards = run_experiment(QLearningAgent, env)
-sarsa_rewards = run_experiment(SarsaAgent, env)
-q_learning_eps_scheduling_rewards = run_experiment(QLearningAgentEpsScheduling, env)
+q_learning_rewards = run_experiment(QLearningAgent, env, 1000)
+sarsa_rewards = run_experiment(SarsaAgent, env, 1000)
+q_learning_eps_scheduling_rewards = run_experiment(QLearningAgentEpsScheduling, env, 1000)
 
-# Plot results with improvements
+
+def average_rewards(rewards, interval=10):
+    """Average rewards over specified intervals."""
+    return [np.mean(rewards[i:i+interval]) for i in range(0, len(rewards), interval)]
+
+interval = 10
+q_learning_avg = average_rewards(q_learning_rewards, interval)
+sarsa_avg = average_rewards(sarsa_rewards, interval)
+q_learning_eps_scheduling_avg = average_rewards(q_learning_eps_scheduling_rewards, interval)
+
 plt.figure(figsize=(12, 6))
 
-# Plot raw data with low alpha
-plt.plot(q_learning_rewards, label='Q-Learning', alpha=0.3)
-plt.plot(sarsa_rewards, label='SARSA', alpha=0.3)
-plt.plot(q_learning_eps_scheduling_rewards, label='Q-Learning with Epsilon Scheduling', alpha=0.3)
-
-# Plot smoothed data
-window_size = 50
-plt.plot(smooth_rewards(q_learning_rewards, window_size), label='Q-Learning (Smoothed)', linewidth=2)
-plt.plot(smooth_rewards(sarsa_rewards, window_size), label='SARSA (Smoothed)', linewidth=2)
-plt.plot(smooth_rewards(q_learning_eps_scheduling_rewards, window_size), 
-         label='Q-Learning with Epsilon Scheduling (Smoothed)', linewidth=2)
+episodes = range(0, len(q_learning_rewards), interval)
+plt.plot(episodes, q_learning_avg, label='Q-Learning', linewidth=2)
+plt.plot(episodes, sarsa_avg, label='SARSA', linewidth=2)
+plt.plot(episodes, q_learning_eps_scheduling_avg, label='Q-Learning with Epsilon Scheduling', linewidth=2)
 
 plt.xlabel('Episodes')
-plt.ylabel('Reward')
-plt.title('Learning Curves Comparison (Smoothed)')
+plt.ylabel('Average Reward')
+plt.title('Learning Curves Comparison')
 plt.legend()
 plt.grid(True, which='both', linestyle='--', linewidth=0.5)
 plt.tight_layout()
 plt.savefig('learning_curves.png', dpi=300)
 plt.show()
 
-# Close the environment
 env.close()
-
-def smooth_rewards(rewards, window_size=50):
-    """Apply smoothing to the rewards."""
-    cumsum = np.cumsum(np.insert(rewards, 0, 0)) 
-    return (cumsum[window_size:] - cumsum[:-window_size]) / window_size
